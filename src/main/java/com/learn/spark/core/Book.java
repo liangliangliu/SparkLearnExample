@@ -36,6 +36,10 @@ public class Book implements Serializable{//要可序列化,否则不能再集�
 			public Book() {
 				
 			}
+			@Override
+			 public String toString() {
+				return this.bookId + "|" + this.content + "|" + this.contentStartPos;
+			}
 			public static void main(String[] args) {
 				Set<String> set = new HashSet<String>();
 				set.add("ww");

@@ -1,12 +1,17 @@
 package com.learn.spark.core;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.spark.HashPartitioner;
+import org.apache.spark.Partition;
+import org.apache.spark.Partitioner;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.Optional;
 import org.apache.spark.sql.SparkSession;
 
 import scala.Tuple2;
@@ -53,16 +58,92 @@ public class combineByKeyFun {
                 , new Tuple2<Integer, Integer>(3, 5), new Tuple2<Integer, Integer>(3, 6)
                 , new Tuple2<Integer, Integer>(4, 7), new Tuple2<Integer, Integer>(4, 8)
                 , new Tuple2<Integer, Integer>(5, 9), new Tuple2<Integer, Integer>(5, 10)
-        ), 2);
-        JavaPairRDD<Integer, Integer> pairRDD = JavaPairRDD.fromJavaRDD(tupRdd);
-        List<Tuple2<Integer, String>> collect = pairRDD
+                , new Tuple2<Integer, Integer>(1, 9), new Tuple2<Integer, Integer>(1, 10)
+        ), 3);
+         
+        JavaPairRDD<Integer, Integer> pairRDD = JavaPairRDD
+        		.fromJavaRDD(tupRdd)
+        		.partitionBy(new HashPartitioner(5));
+        Optional<Partitioner> partitioner = pairRDD.partitioner();
+        System.out.println(pairRDD.getNumPartitions());
+        System.out.println(pairRDD.partitions().size());
+        List<Partition> partitions = pairRDD.partitions();
+        for(Partition p : partitions) {
+        	  System.out.println(p);
+        }
+        if(partitioner.isPresent()) {
+          System.out.println(partitioner.get());	
+        }else {
+        	System.out.println("partitioner is null");	
+        }
+        
+//        JavaRDD<String> mapPartitionsWithIndex = pairRDD.mapPartitionsWithIndex((x,y) ->{
+//       	 List<String> list = new ArrayList<String>();
+//       	 while(y.hasNext()) {
+//       		 Tuple2<Integer, Integer> next = y.next();
+//       		 String value = x + "|" + next._1 + "|" + next._2;
+//       		 System.out.println(value);
+//       		 list.add(value) ;
+//       	 }
+//       	 return list.iterator();
+//       }, false);
+        
+         JavaPairRDD<Integer, Integer> mapToPair = pairRDD
+        		  .mapValues(x ->{
+        			return x + 1;  
+        		  });
+
+         
+        Optional<Partitioner> partitioner2 = mapToPair.partitioner();
+        if(partitioner2.isPresent()) {
+            System.out.println("2:" + partitioner2.get());	
+          }else {
+          	System.out.println("2:" + "partitioner is null");	
+          }
+        pairRDD.cache();
+        List<String> collect2 = pairRDD
+        	.repartition(2)
+        	.mapPartitionsWithIndex((x,y) ->{
+        	 List<String> list = new ArrayList<String>();
+        	 while(y.hasNext()) {
+        		 Tuple2<Integer, Integer> next = y.next();
+        		 String value = x + "|" + next._1 + "|" + next._2;
+        		 System.out.println(value);
+        		 list.add(value) ;
+        	 }
+        	 return list.iterator();
+        }, true)
+        .collect();
+        System.out.println(collect2);
+//        List<Tuple2<Integer, String>> collect = 
+        		List<String> collect = pairRDD
                 .combineByKey(x ->{
         			 return x + "##0";
         		}, (c,v) -> {
         			return c + "," + v + "##0";
         		}, (c1,c2) -> {
         			return c1 + "," + c2;
-        		}).collect();
+        		}).mapPartitionsWithIndex((x,y) ->{
+               	 List<String> list = new ArrayList<String>();
+            	 while(y.hasNext()) {
+            		   Tuple2<Integer, String> next = y.next();
+            		 String value = x + "|" + next._1 + "|" + next._2;
+            		 System.out.println("1:" + value);
+            		 list.add(value) ;
+            	 }
+            	 return list.iterator();
+            }, false)
+                .mapPartitionsWithIndex((x,y) ->{
+                  	 List<String> list = new ArrayList<String>();
+               	 while(y.hasNext()) {
+               		    String next = y.next();
+               		 String value = x + "|" + next;
+               		 System.out.println("2:" + value);
+               		 list.add(value) ;
+               	 }
+               	 return list.iterator();
+               }, false)  
+            .collect();
                 
          System.err.println(collect);
          jsc.close();

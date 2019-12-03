@@ -1,34 +1,119 @@
 package com.learn.spark.core;
 
+import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
+import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.storage.StorageLevel;
 
- 
+//import scala.Function2;
 import scala.Tuple2;
-//import scala.collection.Iterator;
+import scala.collection.Iterator;
 import scala.reflect.ClassTag;
 
  
 import java.util.Set;
-import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.Arrays;
+//import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.spark.rdd.NewHadoopRDD;
 
 public class ReadFileFun {
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		String path = "";
-        SparkSession spark = SparkSession.builder().appName("ReadFileFun").master("local[2]").enableHiveSupport().getOrCreate();
+	 	
+		SparkConf ss = new SparkConf();
+		//ss.registerKryoClasses(Array(classOf[Book],classOf[Book]));
+		Class[] css = new Class[1];
+		//css[0] = String.class;
+		css[0] = scala.collection.mutable.WrappedArray.ofRef[].class;
+		ss.registerKryoClasses(css);
+        SparkSession spark = SparkSession.builder()
+        		.appName("ReadFileFun")
+        		.master("local[2]")
+        		//.config(ss)
+        		//.config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+        		//.config("spark.kryo.registrationRequired", true)
+        		//.config("spark.kryo.classesToRegister",Book.class.getName())
+        		 
+        		//.enableHiveSupport()
+        		.getOrCreate();
+        System.out.println(Book.class.getName());
         SparkContext sc = spark.sparkContext();
+        JavaSparkContext  jsc = new JavaSparkContext(sc);
+        List<String> list = Arrays.asList("66","ww","op","dshjr","dsetvaas","dsfefvva","135sdfgghhhjrrr");
+        JavaRDD<Tuple2<Integer, Integer>> tupRdd = jsc.parallelize(Arrays.asList(new Tuple2<Integer, Integer>(1, 1), new Tuple2<Integer, Integer>(1, 2)
+                , new Tuple2<Integer, Integer>(2, 3), new Tuple2<Integer, Integer>(2, 4)
+                , new Tuple2<Integer, Integer>(3, 5), new Tuple2<Integer, Integer>(3, 6)
+                , new Tuple2<Integer, Integer>(4, 7), new Tuple2<Integer, Integer>(4, 8)
+                , new Tuple2<Integer, Integer>(5, 9), new Tuple2<Integer, Integer>(5, 10)
+        ), 3);
+        JavaPairRDD<Integer, Integer> pairRDD = JavaPairRDD.fromJavaRDD(tupRdd);
+//        JavaRDD<String> rdd = pairRDD.map(x ->{
+//        	return x._1 + "|" + x._2;
+//        });
+//        rdd.cache();
+//        System.out.println(rdd.collect());
+
+        //jsc.newAPIHadoopFile(arg0, arg1, arg2, arg3, arg4)
+        
+        List<Tuple2<Integer, String>> collect = pairRDD
+        .combineByKey(x ->{
+			 return x + "##0";
+		}, (c,v) -> {
+			return c + "," + v + "##0";
+		}, (c1,c2) -> {
+			return c1 + "," + c2;
+		}).collect();
+        
+        System.err.println(collect);
+        
+        JavaRDD<Book> test = jsc.parallelize(list).map(x -> {
+        	  Book book = new Book();
+        	  book.setBookId(x);
+        	  book.setContent("66asdlmakluu5mll333aa-;l;kjasdjfjej");
+        	  return book;
+        });
+        test.persist(StorageLevel.MEMORY_AND_DISK_SER());
+        test.collect().forEach(x -> System.out.println(x.toString() + "iii"));
+        Thread.sleep(10000);
+        System.out.println(test.collect());
+        
+//        JavaPairRDD<LongWritable, Text> newAPIHadoopFile2 = jsc.newAPIHadoopFile(path, TextInputFormat.class,LongWritable.class, Text.class, sc.hadoopConfiguration());
+//        ((NewHadoopRDD)newAPIHadoopFile2).map
+        
+        
+        ClassTag<Tuple2> tag = scala.reflect.ClassTag$.MODULE$.apply(Tuple2.class);
         RDD<Tuple2<LongWritable, Text>> newAPIHadoopFile = sc.newAPIHadoopFile(path, TextInputFormat.class,LongWritable.class, Text.class, sc.hadoopConfiguration());
+//       ((JavaNewHadoopRDD)newAPIHadoopFile).mapPartitionsWithInputSplit(new Function2<InputSplit, Iterator<Tuple2<LongWritable, Text>>, Iterator<Tuple2<String,String>> >(){
+//
+//		@Override
+//		public Iterator<Tuple2<String, String>> call(InputSplit v1, Iterator<Tuple2<LongWritable, Text>> v2)
+//				throws Exception {
+//			// TODO Auto-generated method stub
+//			return null;
+//		}
+//
+//			 
+//    	},true);
         //scala.reflect.ClassTag$.MODULE$.apply(Integer.class);
-        ClassTag<String> tag = scala.reflect.ClassTag$.MODULE$.apply(String.class);
+//        ClassTag<String> tag = scala.reflect.ClassTag$.MODULE$.apply(String.class);
         
         
          
