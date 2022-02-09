@@ -10,7 +10,7 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<hadoop.version>3.1.0</hadoop.version>
+		<hadoop.version>3.1.4</hadoop.version>
 		<hbase.version>2.0.0</hbase.version>
         <mysql.version>5.1.32</mysql.version>
         <scala.version>2.12</scala.version>
